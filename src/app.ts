@@ -5,8 +5,9 @@ export let app = (() => {
     let bot = Bot.create();
     //bot.doSniping();
     //bot.sendBNBtoAllAccountSnipers();
+    //bot.sendBNBonAllAccountstoFirstAccount();
     //bot.approveAllAccountSnipers();
-    bot.getAllAccountBalances();
+    //bot.getAllAccountBalances();
     //bot.getAllAccountAddresses();
     //let walletManager = WalletManager.create();
     //walletManager.createWallets(2);

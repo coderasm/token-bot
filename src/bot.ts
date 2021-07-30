@@ -11,6 +11,9 @@ let Bot = {
     const network:Network = config.networks[activeNetwork];
     const endpointRateLimit = 0;
     const tokenDivisor = ethers.BigNumber.from(10).pow(9);
+    const gas = ethers.BigNumber.from(21000);
+    let gasPrice = ethers.utils.parseUnits("1", "gwei");
+    let cost = gas.mul(gasPrice);
 
     //const web3 = new Web3(Web3.givenProvider || network.provider);
     //const provider = new ethers.providers.WebSocketProvider(network.provider.webSocket);
@@ -292,15 +295,6 @@ let Bot = {
         }
     }
 
-    // async function sendBNBtoAll(i:number) {
-    //   var amountToSend = ethers.utils.parseEther("0.01");
-    //   setTimeout(async () => {
-    //     sendBNB(recipients[i].address, amountToSend);
-    //     if(i < recipients.length - 1)
-    //       sendBNBtoAll(++i);
-    //   }, endpointRateLimit);
-    // }
-
     async function sendBNB(sendBNBData: SendBNBData) {
       try {
         var tx = await sendBNBData.account.sniper.sendTransaction({
@@ -318,6 +312,44 @@ let Bot = {
       }
     }
 
+    async function sendBNBonAllAccountstoFirstAccount() {
+      gasPrice = await provider.getGasPrice();
+      cost = gas.mul(gasPrice);
+      for (const account of accounts) {
+        sendBNBonAccountToFirstAccount(await account);
+      }
+    }
+
+    async function sendBNBonAccountToFirstAccount(account: Account) {
+        for (const recipient of account.recipients) {
+          sendAllBNBtoFirstAccount(account.sniper, recipient.connect(provider));
+        }
+    }
+
+    async function sendAllBNBtoFirstAccount(to: Wallet, from: Wallet) {
+      try {
+        var amountOnAccount = await provider.getBalance(from.address);
+        var amountToSend = amountOnAccount.sub(cost);
+        if(!amountToSend.gt(0))
+          return;
+        //console.log(ethers.utils.formatEther(amountOnAccount));
+        var transfer = await from.sendTransaction({
+          to: to.address,
+          value: amountToSend,
+          nonce: await provider.getTransactionCount(from.address),
+          gasPrice: gasPrice,
+          gasLimit: gas.toNumber()
+        });
+        var result = await transfer.wait();
+        if(result.status == 1)
+          console.log(`Transfered ${ethers.utils.formatEther(amountToSend)} to ${to.address}`);
+        else
+          console.log(`Failed transfering ${ethers.utils.formatEther(amountToSend)} to ${to.address}`);
+      } catch (error) {
+        console.log(error);
+      }
+    }
+
     async function approveAllAccountSnipers() {
       for (const account of accounts) {
         approveAll(await account);
@@ -329,15 +361,6 @@ let Bot = {
         approve(recipient);
       }
     }
-
-    // async function approveAll(i:number) {
-    //   var recipient = recipients[i].connect(provider);
-    //   setTimeout(async () => {
-    //     approve(recipient);
-    //     if(i < recipients.length - 1)
-    //       approveAll(++i);
-    //   }, endpointRateLimit);
-    // }
 
     async function approve(recip: Wallet) {
       var recipient = recip.connect(provider);
@@ -396,6 +419,7 @@ let Bot = {
       doSniping: doSniping,
       sell: sell,
       claim: claim,
+      sendBNBonAllAccountstoFirstAccount: sendBNBonAllAccountstoFirstAccount,
       sendBNBtoAllAccountSnipers: sendBNBtoAllAccountSnipers,
       sendBNBtoSnipers: sendBNBtoSnipers,
       getAllAccountBalances: getAllAccountBalances,
